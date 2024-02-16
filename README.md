@@ -12,8 +12,9 @@
 3. Aggregator: `batch_blocks`
 4. (a) Relayer: `relay_commitment`, (b) Prover: `prove_batch`
 5. L1 rollup contract: `l1_commit`
-6. Relayer: `relay_proof`
-7. L2 rollup contract: `l1_verify`
+6. Prover: 
+7. Relayer: `relay_proof`
+8. L2 rollup contract: `l1_verify`
 
 ### L1 bridge to L2 (deposit)
 
