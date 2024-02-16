@@ -2,21 +2,21 @@ from types import NoneType
 Receipt = NoneType
 Proof = NoneType
 
-def l2_tx(from_addr, to_addr, value, fees, gas_price, calldata):
-    """
-    Initiates a transaction on the L2 network and waits for a receipt confirming the transaction has been processed.
+Address = User | Contract
+Origin = L1 | L2
+Tx = (from_adrr, to_addr, value, origin)
+Mempool = Set[Tx]
+L2_State = (Map[Address,Balance],Storage)
+L2_State_Status = Confirmation | 
 
-    Component: L2 user
-    Sends message to: L2 mempool
-    Processed by: sequence_txs
-    Waits for: sequence_l2_txs
-    Publish: -
-    Returns to: -
+def l2_tx(from_addr, to_addr, value):
+    """
+    Initiates a transaction on the L2 network and waits for a receipt confirming the transaction has been processed.    
     """
 
 def sequence_l2_txs(mempool, l2_state) -> Receipt:
     """
-    Reads the L2 mempool, sequences transactions, executes them, and creates a block. 
+    Reads the L2 mempool, orders transactions, executes them, and creates a block. 
     Returns receipts to users and calls the aggregator.
 
     Component: Sequencer
