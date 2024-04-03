@@ -44,6 +44,7 @@ pred receive_commitment[c : Commitment] {
   state = state'
   diff = diff'
   forced_queue = forced_queue'
+  block_inputs = block_inputs'
   Forced = Forced'
 }
 
@@ -61,6 +62,7 @@ pred receive_proof[p : Proof] {
   state = state'
   diff = diff'
   forced_queue = forced_queue'
+  block_inputs = block_inputs'
   Forced = Forced'
 }
 
@@ -76,32 +78,33 @@ pred receive_forced[f : Forced] {
  Commitment = Commitment'
  proofs = proofs'
  finalized_state = finalized_state'
+ block_inputs = block_inputs'
  state = state'
  diff = diff'
  Forced = Forced'
 }
 
 
-pred rollup_simple[pickone : Commitment -> Proof] {
-  pickone in L1.commitments -> L1.proofs
-  let  possible_extensions = { c : Commitment, p : Proof | c.state = p.state 
-      and c.state = L1.finalized_state and c.diff = p.diff
-      and (no L1.finalized_state.idxOf[c.diff]) } 
-      {
-     #pickone = 1
-     pickone in possible_extensions
-     L1.finalized_state' = L1.finalized_state.add[pickone.Proof.diff]
-     L1.proofs' = L1.proofs - Commitment.possible_extensions
-     L1.commitments' = L1.commitments - possible_extensions.Proof
-  }
- 
-  // frame conditions
-  Proof = Proof'
-  Forced = Forced'
-  Commitment = Commitment'
-  state = state'
-  diff = diff'
-  forced_queue = forced_queue'
+
+pred rollup_simple[c: Commitment, p:Proof] {
+    c -> p in L1.commitments -> L1.proofs
+    c.state = p.state
+    c.diff  = p.diff
+    c.state = L1.finalized_state
+    (no L1.finalized_state.idxOf[c.diff])
+    some L1.forced_queue implies some c.diff.block_inputs.idxOf[L1.forced_queue.first]
+
+    L1.finalized_state' = L1.finalized_state.add[p.diff]
+    L1.proofs' = L1.proofs - p
+    L1.commitments' = L1.commitments - c
+
+    Proof = Proof'
+    Forced = Forced'
+    Commitment = Commitment'
+    state = state'
+    block_inputs = block_inputs'
+    diff = diff'
+    no (L1.forced_queue'.elems & p.diff.block_inputs.elems)
 }
 
 pred stutter {
@@ -114,6 +117,7 @@ pred stutter {
   proofs = proofs'
   finalized_state = finalized_state'
   state = state'
+  block_inputs = block_inputs'
   diff = diff'
   forced_queue = forced_queue'
 }
@@ -137,8 +141,10 @@ fun stutter_happens : set Event {
 }
 
 fun rollup_simple_happens : Event -> Commitment -> Proof {
-  { e : ProcessSimple, c: Commitment , p : Proof | rollup_simple[c -> p] }
+  { e : ProcessSimple, c: Commitment , p : Proof | rollup_simple[c,p] }
 }
+
+
 
 fun events : set Event {
    rollup_simple_happens.Proof.Commitment 
@@ -156,10 +162,10 @@ check at_most_one_event {
   always lone events
 } for 5
 
-// start with no finilized state<
+// start with no finilized state
 fact {
   no finalized_state
-  no forced_queue
+  #forced_queue = 1
   no commitments
   no proofs
 } 
@@ -168,6 +174,33 @@ assert finalized_state_monotonic { // final state grows monotonically
   always (finalized_state in finalized_state')
 }
 check finalized_state_monotonic for 5
+
+assert cold_rollup_prop1 {
+  always (
+   (some L1.forced_queue and  some (L1.finalized_state - L1.finalized_state'))
+     implies
+       some L1.finalized_state'.idxOf[L1.forced_queue.first]
+  )
+}
+check cold_rollup_prop1 for 7
+
+assert cold_rollup_prop2 {
+  always (
+   (L1.finalized_state = L1.finalized_state')
+     implies
+       L1.forced_queue in L1.forced_queue'
+  )
+}
+check cold_rollup_prop2 for 7
+
+assert cold_rollup_prop3 {
+  always (
+   (L1.forced_queue' = L1.forced_queue and some L1.forced_queue)
+     implies
+       L1.finalized_state = L1.finalized_state'
+  )
+}
+check cold_rollup_prop3 for 5
 
 assert finalized_state_correct { // if something gets into finilized_state then at some moment there was a proof and a commitment for it
  always(
@@ -187,7 +220,8 @@ run two_process_in_a_row {
 } for 5
 
 run { 
-eventually #forced_queue = 3
-} for 3
+//#forced_queue = 2
+  eventually  (#forced_queue = 1 and #finalized_state = 2)
+} for 10 but 15 steps
 
 
