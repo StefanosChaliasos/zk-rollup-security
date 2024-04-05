@@ -98,13 +98,20 @@ pred rollup_simple[c: Commitment, p:Proof] {
     L1.proofs' = L1.proofs - p
     L1.commitments' = L1.commitments - c
 
+    no (L1.forced_queue'.elems & p.diff.block_inputs.elems)
+    all x : Forced | (x not in p.diff.block_inputs.elems  
+                 and (some L1.forced_queue.idxOf[x]))
+       implies L1.forced_queue'.idxOf[x] < L1.forced_queue.idxOf[x]
+    all x : Forced | x not in L1.forced_queue.elems implies x not in L1.forced_queue'.elems
+    not L1.forced_queue'.hasDups
+
     Proof = Proof'
     Forced = Forced'
     Commitment = Commitment'
     state = state'
     block_inputs = block_inputs'
     diff = diff'
-    no (L1.forced_queue'.elems & p.diff.block_inputs.elems)
+
 }
 
 pred stutter {
@@ -165,9 +172,9 @@ check at_most_one_event {
 // start with no finilized state
 fact {
   no finalized_state
-  #forced_queue = 1
-  no commitments
-  no proofs
+  no forced_queue
+//  no commitments
+//  no proofs
 } 
 
 assert finalized_state_monotonic { // final state grows monotonically
@@ -177,9 +184,9 @@ check finalized_state_monotonic for 5
 
 assert cold_rollup_prop1 {
   always (
-   (some L1.forced_queue and  some (L1.finalized_state - L1.finalized_state'))
+   (some L1.forced_queue and  some (L1.finalized_state' - L1.finalized_state))
      implies
-       some L1.finalized_state'.idxOf[L1.forced_queue.first]
+         some L1.finalized_state'.elems.block_inputs.idxOf[L1.forced_queue.first]
   )
 }
 check cold_rollup_prop1 for 7
@@ -202,7 +209,29 @@ assert cold_rollup_prop3 {
 }
 check cold_rollup_prop3 for 5
 
-assert finalized_state_correct { // if something gets into finilized_state then at some moment there was a proof and a commitment for it
+assert cold_rollup_prop4 {
+ always (
+   (plus[#L1.finalized_state,1] >= #L1.finalized_state')
+ )
+}
+check cold_rollup_prop4
+
+// forced txs move down in the forced queue
+assert cold_rollup_prop5 {
+ always (
+    (some L1.forced_queue 
+    and #L1.finalized_state < #L1.finalized_state') implies
+    (all x : Forced |
+      (some L1.forced_queue.idxOf[x]
+      and some L1.forced_queue'.idxOf[x])
+       implies 
+        L1.forced_queue'.idxOf[x] < L1.forced_queue.idxOf[x])
+ )
+}
+check cold_rollup_prop5
+
+// if something gets into finilized_state then at some moment there was a proof and a commitment for it
+assert finalized_state_correct { 
  always(
    all b : Block | some L1.finalized_state.idxOf[b]
      implies
@@ -220,8 +249,7 @@ run two_process_in_a_row {
 } for 5
 
 run { 
-//#forced_queue = 2
-  eventually  (#forced_queue = 1 and #finalized_state = 2)
-} for 10 but 15 steps
+ eventually (#forced_queue = 2 and #finalized_state = 1 ; #finalized_state = 2)
+} for 10 
 
 
