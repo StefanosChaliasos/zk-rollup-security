@@ -1,26 +1,7 @@
 module alloy/rollup_seq
-// CENSORSHIP:
-// We model predicate "Censored input" with subset "input in Censored".
-// don't process commitments, proofs, and forced if in censored
-// UPDATE: full update of the policy
-// add censored as Forced TX... how to deal with transactions
-// to simplify allow only one "XCensoring txs" in the queue
-// when handling forced_queue must take into account "XCensoring"
-
-// Ben: forced_queue to control_queue
-// Stefanos: 
-// 1. add X rounds of slack before insisting of freezing the L2
-// 2. adding more fine grained statuses for L2 block
-
-// UPGRADEABILITY:
-// ANNOUNCE_UPGRADE transaction goes into forced queue
-// 
-// We add an exit queue
-// - every user has N tran
 
 var sig Input{} // inputs/transactions
 
-var sig Forced in Input{}
 // forced inputs is a subset because otherwise can badly interact 
 // with policies, allow withdrawals)
 
@@ -29,24 +10,29 @@ var sig Block {
  var block_inputs : seq Input
 }
 
+var abstract sig ForcedEvent {}
+var sig ForcedInput extends ForcedEvent {
+   var tx : one Input
+}
+
+
 var abstract sig ZKObject {
   var state : seq Block,
   var diff : one Block // Stefanos: possible to have diff: seq Block
 }
-
 var sig Proof extends ZKObject{}{
   not state.hasDups
   diff not in state.elems
 }
-
 var sig Commitment extends ZKObject{}{
   not state.hasDups
   diff not in state.elems
 }
 
+
 one sig L1 {
   var finalized_state : seq Block,
-  var forced_queue : seq Forced,
+  var forced_queue : seq ForcedEvent,
   var commitments : set Commitment,
   var proofs : set Proof
 // var censored : set Input
@@ -79,7 +65,8 @@ pred receive_commitment[c : Commitment] {
   diff = diff'
   forced_queue = forced_queue'
   block_inputs = block_inputs'
-  Forced = Forced'
+  ForcedEvent = ForcedEvent'
+  tx = tx'
 }
 
 pred receive_proof[p : Proof] {
@@ -98,12 +85,13 @@ pred receive_proof[p : Proof] {
   diff = diff'
   forced_queue = forced_queue'
   block_inputs = block_inputs'
-  Forced = Forced'
+  ForcedEvent' = ForcedEvent
+  tx = tx'
 }
 
-pred receive_forced[f : Forced] {
+pred receive_forced[f : ForcedEvent] {
  no L1.forced_queue.idxOf[f]
- f not in all_finalized_inputs
+ f.tx not in all_finalized_inputs
  L1.forced_queue' = L1.forced_queue.add[f]
 
  // frame conditions
@@ -117,7 +105,8 @@ pred receive_forced[f : Forced] {
  block_inputs = block_inputs'
  state = state'
  diff = diff'
- Forced = Forced'
+ ForcedEvent' = ForcedEvent
+ tx = tx'
 }
 
 
@@ -130,28 +119,29 @@ pred rollup_simple[c: Commitment, p:Proof] {
 
     (no L1.finalized_state.idxOf[c.diff])
     some L1.forced_queue 
-       implies some c.diff.block_inputs.idxOf[L1.forced_queue.first]
+       implies some c.diff.block_inputs.idxOf[L1.forced_queue.first.tx]
 
     L1.finalized_state' = L1.finalized_state.add[p.diff]
     L1.proofs' = L1.proofs - p
     L1.commitments' = L1.commitments - c
 
-    no (L1.forced_queue'.elems & p.diff.block_inputs.elems)
-    all x : Forced | (x not in p.diff.block_inputs.elems  
-                 and (some L1.forced_queue.idxOf[x]))
-       implies L1.forced_queue'.idxOf[x] < L1.forced_queue.idxOf[x]
-    all x : Forced | x not in L1.forced_queue.elems 
+    no (L1.forced_queue'.elems.tx & p.diff.block_inputs.elems)
+    all x : ForcedEvent | (x.tx not in p.diff.block_inputs.elems  
+                 and (some L1.forced_queue.idxOf[x.tx]))
+       implies L1.forced_queue'.idxOf[x.tx] < L1.forced_queue.idxOf[x.tx]
+    all x : ForcedEvent | x not in L1.forced_queue.elems
        implies x not in L1.forced_queue'.elems
 
     // frame conditions
     Proof = Proof'
-    Forced = Forced'
+    ForcedEvent = ForcedEvent'
     Commitment = Commitment'
     state = state'
     block_inputs = block_inputs'
     diff = diff'
     Input = Input'
     Block = Block'
+    tx = tx'
 }
 
 
@@ -162,13 +152,14 @@ pred stutter {
   Proof = Proof'
   Input = Input'
   Block = Block'
-  Forced = Forced'
+  ForcedEvent = ForcedEvent'
   Commitment = Commitment'
   proofs = proofs'
   finalized_state = finalized_state'
   state = state'
   block_inputs = block_inputs'
   diff = diff'
+  tx = tx'
   forced_queue = forced_queue'
 }
 
@@ -189,8 +180,8 @@ fun receive_proof_happens : Event -> Proof {
   { e : ReceiveProof, p: Proof | receive_proof[p] }
 }
 
-fun receive_forced_happens : Event -> Forced {
-  { e : ReceiveForced, p: Forced | receive_forced[p] }
+fun receive_forced_happens : Event -> ForcedEvent {
+  { e : ReceiveForced, p: ForcedEvent | receive_forced[p] }
 }
 
 fun stutter_happens : set Event {
@@ -204,16 +195,9 @@ fun rollup_simple_happens : Event -> Commitment -> Proof {
 fun events : set Event {
    rollup_simple_happens.Proof.Commitment 
    + stutter_happens 
-   + receive_forced_happens.Forced
+   + receive_forced_happens.ForcedEvent
    + receive_proof_happens.Proof
    + receive_commitment_happens.Commitment
-}
-
-fun zzz_happens : Event -> set Input {
-  { e : ProcessSimple, s : some Input | zzz[s]}
-}
-
-pred zzz[txs : set Input]{
 }
 
 fact traces { // possible traces
@@ -251,7 +235,7 @@ assert cold_rollup_prop1 {
    (some L1.forced_queue and some (L1.finalized_state' - L1.finalized_state))
      implies
          //some L1.finalized_state'.elems.block_inputs.idxOf[L1.forced_queue.first]
-         L1.forced_queue.first in new_finalized_inputs
+         L1.forced_queue.first.tx in new_finalized_inputs
   )
 }
 check cold_rollup_prop1 for 5
@@ -282,7 +266,7 @@ assert cold_rollup_prop5 {
  always (
     (some L1.forced_queue 
     and #L1.finalized_state < #L1.finalized_state') implies
-    (all x : Forced |
+    (all x : ForcedEvent |
       (some L1.forced_queue.idxOf[x]
       and some L1.forced_queue'.idxOf[x])
        implies 
