@@ -1,5 +1,4 @@
 module alloy/rollup_dynamics
-
 open alloy/rollup_data_model
 
 
@@ -25,6 +24,11 @@ pred receive_commitment[c : Commitment] {
   tx = tx'
   blacklist = blacklist'
   predicate = predicate'
+  BlacklistUpdateAnnouncement = BlacklistUpdateAnnouncement'
+  blacklist_policy = blacklist_policy'
+  Timeout = Timeout'
+  upgrade = upgrade'
+  ongoing_upgrade = ongoing_upgrade'
 }
 
 pred receive_proof[p : Proof] {
@@ -47,6 +51,11 @@ pred receive_proof[p : Proof] {
   tx = tx'
   blacklist = blacklist'
   predicate = predicate'
+  BlacklistUpdateAnnouncement = BlacklistUpdateAnnouncement'
+  blacklist_policy = blacklist_policy'
+  Timeout = Timeout'
+  upgrade = upgrade'
+  ongoing_upgrade = ongoing_upgrade'
 }
 
 pred receive_forced_broken[f : ForcedEvent, bl : set Input] {
@@ -71,41 +80,56 @@ pred receive_forced_broken[f : ForcedEvent, bl : set Input] {
  tx = tx'
  blacklist = blacklist'
  predicate = predicate'
+ BlacklistUpdateAnnouncement = BlacklistUpdateAnnouncement'
+ blacklist_policy = blacklist_policy'
+ Timeout = Timeout'
+ upgrade = upgrade'
+ ongoing_upgrade = ongoing_upgrade'
 }
 
 pred receive_forced[f : ForcedEvent, bl : set Input] {
  no L1.forced_queue.idxOf[f]
+ upgrade_in_progress implies upgrade_queueing
+ 
 
 // f in ForcedInput implies (f.tx not in bl and f.tx not in all_finalized_inputs 
 //   and (f.tx not in L1.forced_queue.elems.predicate))
   f in ForcedInput implies (f.tx not in all_finalized_inputs 
      and (some L1.forced_queue.elems.predicate 
-              implies f.tx not in L1.forced_queue.elems.predicate else f.tx not in bl))
+              implies f.tx not in L1.forced_queue.elems.predicate 
+                  else f.tx not in bl))
   
- f in ForcedBlacklistPolicy implies no (ForcedBlacklistPolicy & L1.forced_queue.elems)
+  f in ForcedBlacklistPolicy implies no (ForcedBlacklistPolicy & L1.forced_queue.elems)
 
- L1.forced_queue' = L1.forced_queue.add[f]
+  L1.forced_queue' = L1.forced_queue.add[f]
 
  // frame conditions
- commitments' = commitments
- Proof = Proof'
- Input = Input'
- Block = Block'
- Commitment = Commitment'
- proofs = proofs'
- finalized_state = finalized_state'
- block_inputs = block_inputs'
- state = state'
- diff = diff'
- ForcedEvent' = ForcedEvent
- tx = tx'
- blacklist = blacklist'
- predicate = predicate'
+  commitments' = commitments
+  Proof = Proof'
+  Input = Input'
+  Block = Block'
+  Commitment = Commitment'
+  proofs = proofs'
+  finalized_state = finalized_state'
+  block_inputs = block_inputs'
+  state = state'
+  diff = diff'
+  ForcedEvent' = ForcedEvent
+  tx = tx'
+  blacklist = blacklist'
+  predicate = predicate'
+  BlacklistUpdateAnnouncement = BlacklistUpdateAnnouncement'
+  blacklist_policy = blacklist_policy'
+  Timeout = Timeout'
+  upgrade = upgrade'
+  ongoing_upgrade = ongoing_upgrade'
 }
 
 
 
 pred rollup_simple[c: Commitment, p:Proof, bl : set Input] {
+    upgrade_in_progress implies upgrade_forced_queue_processing
+
     // commitments and proofs are scheduled
     c in L1.commitments  
     p in L1.proofs
@@ -167,6 +191,11 @@ pred rollup_simple[c: Commitment, p:Proof, bl : set Input] {
     tx = tx'
     blacklist = blacklist'
     predicate = predicate'
+    BlacklistUpdateAnnouncement = BlacklistUpdateAnnouncement'
+    blacklist_policy = blacklist_policy'
+    Timeout = Timeout'
+    upgrade = upgrade'
+    ongoing_upgrade = ongoing_upgrade'
 }
 
 
@@ -188,6 +217,11 @@ pred stutter {
   blacklist = blacklist'
   forced_queue = forced_queue'
   predicate = predicate'
+  BlacklistUpdateAnnouncement = BlacklistUpdateAnnouncement'
+  blacklist_policy = blacklist_policy'
+  Timeout = Timeout'
+  upgrade = upgrade'
+  ongoing_upgrade = ongoing_upgrade'
 }
 
 pred update_blacklist[f : ForcedBlacklistPolicy] {
@@ -210,12 +244,100 @@ pred update_blacklist[f : ForcedBlacklistPolicy] {
   diff = diff'
   tx = tx'
   predicate = predicate'
+  BlacklistUpdateAnnouncement = BlacklistUpdateAnnouncement'
+  blacklist_policy = blacklist_policy'
+  Timeout = Timeout'
+  upgrade = upgrade'
+  ongoing_upgrade = ongoing_upgrade'
+}
+
+pred upgrade_init[f : UpgradeAnnouncement] {
+  L1.ongoing_upgrade = none
+  L1.ongoing_upgrade' = f
+  (f not in Timeout.upgrade)
+  
+  commitments' = commitments
+  Proof = Proof'
+  Input = Input'
+  Block = Block'
+  ForcedEvent = ForcedEvent'
+  Commitment = Commitment'
+  proofs = proofs'
+  finalized_state = finalized_state'
+  state = state'
+  block_inputs = block_inputs'
+  forced_queue' = forced_queue
+  diff = diff'
+  tx = tx'
+  predicate = predicate'
+  BlacklistUpdateAnnouncement = BlacklistUpdateAnnouncement'
+  blacklist_policy' = blacklist_policy
+  blacklist' = blacklist
+  Timeout = Timeout'
+  upgrade = upgrade' 
+}
+
+pred upgrade_timeout[t : Timeout] {
+  t.upgrade' = L1.ongoing_upgrade
+
+  Timeout' - t = Timeout
+  Timeout.upgrade' = Timeout'.upgrade
+
+  commitments' = commitments
+  Proof = Proof'
+  Input = Input'
+  Block = Block'
+  ForcedEvent = ForcedEvent'
+  Commitment = Commitment'
+  proofs = proofs'
+  finalized_state = finalized_state'
+  state = state'
+  block_inputs = block_inputs'
+  diff = diff'
+  tx = tx'
+  blacklist = blacklist'
+  forced_queue = forced_queue'
+  predicate = predicate'
+  BlacklistUpdateAnnouncement = BlacklistUpdateAnnouncement'
+  blacklist_policy = blacklist_policy'
+  ongoing_upgrade = ongoing_upgrade'
+}
+
+
+
+
+pred upgrade_deploy {
+  upgrade_forced_queue_processing_finished
+
+  L1.blacklist' = L1.ongoing_upgrade.blacklist_policy.predicate
+  L1.ongoing_upgrade' = none
+
+  Timeout' = Timeout
+  upgrade' = upgrade
+  commitments' = commitments
+  Proof = Proof'
+  Input = Input'
+  Block = Block'
+  ForcedEvent = ForcedEvent'
+  Commitment = Commitment'
+  proofs = proofs'
+  finalized_state = finalized_state'
+  state = state'
+  block_inputs = block_inputs'
+  diff = diff'
+  tx = tx'
+  forced_queue = forced_queue'
+  predicate = predicate'
+  BlacklistUpdateAnnouncement = BlacklistUpdateAnnouncement'
+  blacklist_policy = blacklist_policy'
 }
 
 // system specifications
 fact {
   no finalized_state
   no forced_queue
+  no Timeout
+  no ongoing_upgrade
 } 
 
 // event names
@@ -224,10 +346,17 @@ enum Event { Stutter,
              ReceiveProof, 
              ReceiveForced, 
              ProcessSimple,
-             UpdateBlacklist
+             UpdateBlacklist,
+             UpgradeInit,
+             UpgradeTimeout,
+             UpgradeDeploy
            }
 
 // all possible receive_commitment events
+fun stutter_happens : set Event {
+  { e: Stutter | stutter }
+}
+
 fun receive_commitment_happens : Event -> Commitment {
   { e : ReceiveComm, c: Commitment | receive_commitment[c] }
 }
@@ -240,16 +369,24 @@ fun receive_forced_happens[bl : set Input] : Event -> ForcedEvent {
   { e : ReceiveForced, p: ForcedEvent | receive_forced[p,bl] }
 }
 
-fun stutter_happens : set Event {
-  { e: Stutter | stutter }
-}
-
 fun blacklist_update_happens : Event -> ForcedBlacklistPolicy {
   { e: UpdateBlacklist, f : ForcedBlacklistPolicy | update_blacklist[f] }
 }
 
 fun rollup_simple_happens[bl : set Input] : Event -> Commitment -> Proof {
   { e : ProcessSimple, c: Commitment, p: Proof | rollup_simple[c,p,bl] }
+}
+
+fun upgrade_init_happens : Event -> UpgradeAnnouncement {
+  { e : UpgradeInit, u : UpgradeAnnouncement | upgrade_init[u] }
+}
+
+fun upgrade_timeout_happens : Event -> Timeout {
+  { e : UpgradeTimeout, t : Timeout' | upgrade_timeout[t] }
+}
+
+fun upgrade_deploy_happens : Event  {
+  { e : UpgradeDeploy | upgrade_deploy }
 }
 
 fun events[bl : set Input] : set Event {
@@ -259,14 +396,26 @@ fun events[bl : set Input] : set Event {
    + receive_forced_happens[bl].ForcedEvent
    + receive_proof_happens.Proof
    + receive_commitment_happens.Commitment
+
+   + upgrade_init_happens.UpgradeAnnouncement
+   + upgrade_timeout_happens.Timeout'
+   + upgrade_deploy_happens
+}
+
+fun upgrade_events : set Event {
+  UpgradeInit + UpgradeTimeout + UpgradeDeploy 
 }
 
 pred spec_no_censorship { 
   always some events[none]
 }
 
-pred spec_L1_blacklist { 
+pred spec_L1_blacklist_eager { 
   always some events[L1.blacklist]
+}
+
+pred spec_L1_blacklist_soft { 
+  always (some events[L1.blacklist] and no ForcedBlacklistPolicy & L1.forced_queue.elems)
 }
 
 pred spec_all_censored {
