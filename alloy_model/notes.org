@@ -8,7 +8,6 @@ include a block which corresponds to the new transition
 *** Subtleties
 - process commitments and proofs transition at a time
 cannot finalize state which is more than one transition away
-
 ** Properties
   + at most one event [design of the system]
   + if something gets finalized then there was 
@@ -16,11 +15,14 @@ cannot finalize state which is more than one transition away
   + finalized state grows monotonically
   + [new] if commitment and proof are accepted then they agree and they
     are associated with the current state
+  + [new] only one commitment/proof per state is finalized
+  + [new] every next block adds exactly one block (transition) to the state
 
   - no way to force Input, input might stay non-finalized forever
   - commitment and proof exists but not getting processed
 ** Scenarios
   - start with empty finalized state and progress to multiple blocks
+  - produce two different commitment/proof pairs for the same state, finalize one [other is never finalized]
   - receive proof and commitment in different order
   - receive longer proof/comm and then shorter, finalize both
   - finalize same input multiple times
@@ -131,22 +133,28 @@ Questions:
   - Observe that the described blacklisting mechanism is very agressive -- policy is active
     from the moment it is forced queued. In the following we develop upgradeability mechanism and instatiate
     it for updating the blacklisting policy
-
-
-
 * Forced Queue + Upgradeability [instantiated for soft blacklisting policy]
 ** Mechanism
-TODO
+[TODO]
 Questions:
    - upgrade_in_progress: keep processing -- good because of DDOS
    - during upgrade_queue_processing -- do we accept all TX or only forced ones
 ** Properties
-
+   - The policy can only change if there was upgrade before
+   - If L1.ongoing_upgrade is set iff upgrade is ongoing
+   - if upgrade_queue_progressing then forced_queue does not accept new forced transactions
+   - after upgrade is finished then new policy is enforced
+   - until upgrade is finished the blacklisting policy is not changed
+   - after upgrade is finished all force inputs transactions are finalized
+   - state machine description
+      upgrade_init
+      
 ** Scenarios
+   - upgrade finished then accept new forced queue
+   - transactions get finalized during upgrade phases
+   - transactions get queued before the timeout
+   - upgrade starts ; forced transactions appear ; upgrade finished
 
-
-  
 * Extensions
    - L2 model (fast vm, slow vm, sequencer, watcher, etc.)?
    - Reorgs, DA???
-
