@@ -6,7 +6,7 @@ pred receive_commitment[c : Commitment] {
   // no duplicates
   no c & L1.commitments 
   // committed state is longer than current
-  c.state.subseq[0,#L1.finalized_state] = L1.finalized_state 
+  c.state.subseq[0,sub[#L1.finalized_state,1]] = L1.finalized_state 
 
   // extending the set of commitments to the state transition
   L1.commitments' = L1.commitments + c
@@ -33,7 +33,7 @@ pred receive_commitment[c : Commitment] {
 
 pred receive_proof[p : Proof] {
   no p & L1.proofs
-  p.state.subseq[0,#L1.finalized_state] = L1.finalized_state 
+  p.state.subseq[0,sub[#L1.finalized_state,1]] = L1.finalized_state 
 
   // extending the set of proofs
   L1.proofs' = L1.proofs + p
@@ -125,7 +125,9 @@ pred receive_forced[f : ForcedEvent, bl : set Input] {
   ongoing_upgrade = ongoing_upgrade'
 }
 
-
+pred rollup_process[bl : set Input] {
+  some c : Commitment , p : Proof | rollup_simple[c,p,L1.blacklist]
+}
 
 pred rollup_simple[c: Commitment, p:Proof, bl : set Input] {
     upgrade_in_progress implies upgrade_forced_queue_processing
@@ -157,8 +159,9 @@ pred rollup_simple[c: Commitment, p:Proof, bl : set Input] {
       
     // updates to L1 state
     L1.finalized_state' = L1.finalized_state.add[p.diff]
-    L1.proofs' = L1.proofs - p
-    L1.commitments' = L1.commitments - c
+    L1.proofs' = L1.proofs - (p + { q : Proof | #q.state < #L1.finalized_state })
+
+    L1.commitments' = L1.commitments - (c + { q : Commitment | #q.state < #L1.finalized_state })
 
     // processed elements are deletes form forced queue
     no (L1.forced_queue'.elems.tx & p.diff.block_inputs.elems)
@@ -373,8 +376,8 @@ fun blacklist_update_happens : Event -> ForcedBlacklistPolicy {
   { e: UpdateBlacklist, f : ForcedBlacklistPolicy | update_blacklist[f] }
 }
 
-fun rollup_simple_happens[bl : set Input] : Event -> Commitment -> Proof {
-  { e : ProcessSimple, c: Commitment, p: Proof | rollup_simple[c,p,bl] }
+fun rollup_simple_happens[bl : set Input] : Event  {
+  { e : ProcessSimple | rollup_process[bl] }
 }
 
 fun upgrade_init_happens : Event -> UpgradeAnnouncement {
@@ -390,7 +393,7 @@ fun upgrade_deploy_happens : Event  {
 }
 
 fun events[bl : set Input] : set Event {
-   rollup_simple_happens[bl].Proof.Commitment 
+   rollup_simple_happens[bl] 
    + stutter_happens 
    + blacklist_update_happens.ForcedBlacklistPolicy
    + receive_forced_happens[bl].ForcedEvent

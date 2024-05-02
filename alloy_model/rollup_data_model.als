@@ -43,11 +43,15 @@ var sig Timeout {
 
 // L1 state of the rollup
 one sig L1 {
+  // simple rollup model
   var finalized_state : seq Block,
-  var forced_queue : seq ForcedEvent,
   var commitments : set Commitment,
   var proofs : set Proof,
+  // forced queue
+  var forced_queue : seq ForcedEvent,
+  // eager blacklists 
   var blacklist : set Input,
+  // generic upgradeability
   var ongoing_upgrade : lone UpgradeAnnouncement
 }{ 
   not finalized_state.hasDups

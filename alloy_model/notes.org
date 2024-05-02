@@ -155,6 +155,9 @@ Questions:
    - transactions get queued before the timeout
    - upgrade starts ; forced transactions appear ; upgrade finished
 
-* Extensions
-   - L2 model (fast vm, slow vm, sequencer, watcher, etc.)?
-   - Reorgs, DA???
+* Extensions (Future Work)
+   - L2 model (fast/slow vm, sequencer)
+   - Reorgs (relevant for L2?)
+   - DA and expiration (Celestia collaboration?)
+   - preconfirmations on L2 (?)
+   - More?
