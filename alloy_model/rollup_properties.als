@@ -6,8 +6,9 @@ open alloy/rollup_dynamics
 
 /* at most one event happens at a time */
 check rollup_prop1 {
-  spec_no_censorship implies always lone events[none]
-  spec_L1_blacklist_eager  implies always lone events[L1.blacklist]
+  spec_no_censorship implies always lone events
+  spec_L1_blacklist_eager  implies always lone events
+  spec_L1_blacklist_soft  implies always lone events
 } for 5
 
 
@@ -28,6 +29,7 @@ pred rollup_process_prop2 {
 }
 check {
   spec_L1_blacklist_eager implies rollup_process_prop2
+  spec_L1_blacklist_soft implies rollup_process_prop2
 } for 5
 
 
@@ -37,6 +39,7 @@ pred rollup_process_prop3 {
 }
 check {
   spec_L1_blacklist_eager implies rollup_process_prop3
+  spec_L1_blacklist_soft implies rollup_process_prop3
 } for 5
 
 /*
@@ -48,11 +51,12 @@ pred rollup_process_prop4 {
    all c : Commitment, p : Proof | 
       #c.state < #L1.finalized_state
      implies
-      not (rollup_simple[c,p,L1.blacklist])
+      not (rollup_simple[c,p])
  )
 }
 check {
   spec_L1_blacklist_eager implies rollup_process_prop4
+  spec_L1_blacklist_soft implies rollup_process_prop4
 } for 5
 
 
@@ -71,6 +75,7 @@ pred cold_rollup_prop1 {
 }
 check {
   spec_L1_blacklist_eager implies cold_rollup_prop1 
+  spec_L1_blacklist_soft implies cold_rollup_prop1 
 } for 10
 
 /* if finalized state didn't change then forced_queue only increased */
@@ -83,6 +88,7 @@ pred cold_rollup_prop2 {
 }
 check {
   spec_L1_blacklist_eager implies cold_rollup_prop2 
+  spec_L1_blacklist_soft implies cold_rollup_prop2 
 } for 10
 
 /* if queue is not empty and didn't change then finalized_state didn' change */
@@ -95,6 +101,7 @@ pred cold_rollup_prop3 {
 }
 check {
    spec_L1_blacklist_eager implies cold_rollup_prop3 
+   spec_L1_blacklist_soft implies cold_rollup_prop3 
 } for 10
 
 /* forced txs which were not processed move down in the forced queue */
@@ -111,6 +118,7 @@ pred cold_rollup_prop4 {
 }
 check {
   spec_L1_blacklist_eager implies cold_rollup_prop4
+  spec_L1_blacklist_soft implies cold_rollup_prop4
 } for 5
 
 /* forced txs which were not processed retain their relative order */
@@ -128,6 +136,7 @@ pred cold_rollup_prop7 {
 }
 check {
   spec_L1_blacklist_eager implies cold_rollup_prop7
+  spec_L1_blacklist_soft implies cold_rollup_prop7
 } for 7
 
 /* if forced input was in the forced queue and then disappeared from it then
@@ -140,6 +149,7 @@ pred cold_rollup_prop5 {
 }
 check {
   spec_L1_blacklist_eager implies cold_rollup_prop5
+  spec_L1_blacklist_soft implies cold_rollup_prop5
 } for 7
 
 
@@ -172,38 +182,14 @@ check {
 
 
 
-/* forced input can be processed if it is not censored */
-pred blacklist_prop3 {
-   always(
-     all f : ForcedInput | receive_forced[f,L1.blacklist] implies 
-       always (all c : Commitment, p : Proof 
-                | c.diff.block_inputs.elems = f.tx 
-                    and rollup_simple[c,p,none] 
-                    and f.tx not in all_finalized_inputs
-                      implies rollup_simple[c,p,L1.blacklist])
-   )
-}
-check {
-  spec_no_censorship implies blacklist_prop3
-} for 5
-
-/* input can be forced if it is not censored */
-pred blacklist_prop4 {
-   always(
-     all f : ForcedInput | receive_forced[f,none] 
-          and f.tx not in L1.blacklist
-          and f.tx not in L1.forced_queue.elems.predicate
-         implies receive_forced[f,L1.blacklist])
-}
-check {
-  blacklist_prop4
-} for 5
-
 /* if univ is censored then no new inputs are ever finalized */
-assert blacklist_prop5 {
+pred blacklist_prop5 {
   spec_all_censored implies always (no new_finalized_inputs)
 }
-check blacklist_prop5 for 5
+check {
+  spec_L1_blacklist_eager implies blacklist_prop5
+  spec_L1_blacklist_soft implies blacklist_prop5
+} for 5
 
 /* blacklisted can never appear in the head position of the queue */
 pred blacklist_prop6 {
@@ -248,4 +234,70 @@ check {
   spec_L1_blacklist_soft implies blacklist_prop8
 } for 7
 
+
+/* if there upgrade was deployed (policy changed) then there
+was upgrade announce, followed by timeout */
+pred upgrade_prop1 {
+  always (
+    not L1.blacklist = L1.blacklist' implies
+      once (
+        some a : UpgradeAnnouncement | 
+           a.blacklist_policy.predicate = L1.blacklist'
+           and eventually (some t : Timeout | t.upgrade = a and 
+              not L1.blacklist = a.blacklist_policy.predicate)
+      )
+  )
+}
+
+check {
+  spec_L1_blacklist_soft implies upgrade_prop1
+} for 7
+
+/* after upgrade all forced inputs were finalized */
+pred upgrade_prop2 {
+  always (
+    (not L1.blacklist = L1.blacklist') implies
+      historically (
+        all f : ForcedInput | 
+           f in L1.forced_queue.elems implies
+             eventually (
+               f.tx in L1.finalized_state.elems.block_inputs.elems
+             )
+      )
+  )  
+}
+
+check {
+  spec_L1_blacklist_soft implies upgrade_prop2
+} for 7
+
+/* if policy changed then no ongoing upgrade is happening 
+   (forced queue is unlocked, and rollup process is unlocked) */
+pred upgrade_prop3 {
+  always (
+    (not L1.blacklist = L1.blacklist') implies
+    (L1.ongoing_upgrade.blacklist_policy.predicate = L1.blacklist') and
+    L1.ongoing_upgrade' = none
+  )  
+}
+check {
+  spec_L1_blacklist_soft implies upgrade_prop3
+} for 7
+
+
+/* as long as upgrade is ongoing L1.blacklist does not change */
+pred upgrade_prop4 {
+  always (
+  all is : set Input |
+    L1.blacklist = is 
+    and some L1.ongoing_upgrade
+    implies 
+    (some L1.ongoing_upgrade) releases (L1.blacklist = is)
+  )
+    
+}
+
+check {
+  spec_L1_blacklist_soft implies upgrade_prop4
+} for 7
 

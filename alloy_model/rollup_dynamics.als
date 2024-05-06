@@ -58,36 +58,7 @@ pred receive_proof[p : Proof] {
   ongoing_upgrade = ongoing_upgrade'
 }
 
-pred receive_forced_broken[f : ForcedEvent, bl : set Input] {
- no L1.forced_queue.idxOf[f]
- L1.forced_queue' = L1.forced_queue.add[f]
-
- f in ForcedInput implies f.tx not in bl and f.tx not in all_finalized_inputs
- f in ForcedBlacklistPolicy implies no (ForcedBlacklistPolicy & L1.forced_queue.elems)
-
- // frame conditions
- commitments' = commitments
- Proof = Proof'
- Input = Input'
- Block = Block'
- Commitment = Commitment'
- proofs = proofs'
- finalized_state = finalized_state'
- block_inputs = block_inputs'
- state = state'
- diff = diff'
- ForcedEvent' = ForcedEvent
- tx = tx'
- blacklist = blacklist'
- predicate = predicate'
- BlacklistUpdateAnnouncement = BlacklistUpdateAnnouncement'
- blacklist_policy = blacklist_policy'
- Timeout = Timeout'
- upgrade = upgrade'
- ongoing_upgrade = ongoing_upgrade'
-}
-
-pred receive_forced[f : ForcedEvent, bl : set Input] {
+pred receive_forced[f : ForcedEvent] {
  no L1.forced_queue.idxOf[f]
  upgrade_in_progress implies upgrade_queueing
  
@@ -97,7 +68,7 @@ pred receive_forced[f : ForcedEvent, bl : set Input] {
   f in ForcedInput implies (f.tx not in all_finalized_inputs 
      and (some L1.forced_queue.elems.predicate 
               implies f.tx not in L1.forced_queue.elems.predicate 
-                  else f.tx not in bl))
+                  else f.tx not in L1.blacklist))
   
   f in ForcedBlacklistPolicy implies no (ForcedBlacklistPolicy & L1.forced_queue.elems)
 
@@ -125,11 +96,11 @@ pred receive_forced[f : ForcedEvent, bl : set Input] {
   ongoing_upgrade = ongoing_upgrade'
 }
 
-pred rollup_process[bl : set Input] {
-  some c : Commitment , p : Proof | rollup_simple[c,p,L1.blacklist]
+pred rollup_process {
+  some c : Commitment , p : Proof | rollup_simple[c,p]
 }
 
-pred rollup_simple[c: Commitment, p:Proof, bl : set Input] {
+pred rollup_simple[c: Commitment, p:Proof] {
     upgrade_in_progress implies upgrade_forced_queue_processing
 
     // commitments and proofs are scheduled
@@ -140,7 +111,7 @@ pred rollup_simple[c: Commitment, p:Proof, bl : set Input] {
     c.diff  = p.diff
     c.state = L1.finalized_state
     // currently blacklisted stuff is not processed
-    no (bl & c.diff.block_inputs.elems) 
+    no (L1.blacklist & c.diff.block_inputs.elems) 
     // not processing the block if it is already finalized
     (no L1.finalized_state.idxOf[c.diff])
     // the head of forced queue is in the diff
@@ -368,16 +339,16 @@ fun receive_proof_happens : Event -> Proof {
   { e : ReceiveProof, p: Proof | receive_proof[p] }
 }
 
-fun receive_forced_happens[bl : set Input] : Event -> ForcedEvent {
-  { e : ReceiveForced, p: ForcedEvent | receive_forced[p,bl] }
+fun receive_forced_happens : Event -> ForcedEvent {
+  { e : ReceiveForced, p: ForcedEvent | receive_forced[p] }
 }
 
 fun blacklist_update_happens : Event -> ForcedBlacklistPolicy {
   { e: UpdateBlacklist, f : ForcedBlacklistPolicy | update_blacklist[f] }
 }
 
-fun rollup_simple_happens[bl : set Input] : Event  {
-  { e : ProcessSimple | rollup_process[bl] }
+fun rollup_simple_happens : Event  {
+  { e : ProcessSimple | rollup_process }
 }
 
 fun upgrade_init_happens : Event -> UpgradeAnnouncement {
@@ -392,11 +363,11 @@ fun upgrade_deploy_happens : Event  {
   { e : UpgradeDeploy | upgrade_deploy }
 }
 
-fun events[bl : set Input] : set Event {
-   rollup_simple_happens[bl] 
+fun events : set Event {
+   rollup_simple_happens
    + stutter_happens 
    + blacklist_update_happens.ForcedBlacklistPolicy
-   + receive_forced_happens[bl].ForcedEvent
+   + receive_forced_happens.ForcedEvent
    + receive_proof_happens.Proof
    + receive_commitment_happens.Commitment
 
@@ -410,19 +381,21 @@ fun upgrade_events : set Event {
 }
 
 pred spec_no_censorship { 
-  always some events[none]
+  always (no L1.blacklist)
+  always some events
 }
 
 pred spec_L1_blacklist_eager { 
-  always some events[L1.blacklist]
+  always some events
 }
 
 pred spec_L1_blacklist_soft { 
-  always (some events[L1.blacklist] and no ForcedBlacklistPolicy & L1.forced_queue.elems)
+  always (some events and no ForcedBlacklistPolicy & L1.forced_queue.elems)
 }
 
 pred spec_all_censored {
-  always some events[univ]
+  always (L1.blacklist = univ)
+  always some events
 }
 
 

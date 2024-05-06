@@ -30,7 +30,7 @@ run rollup_process_test3 {
   eventually (
     some p : Proof, c : Commitment | receive_proof[p]
     and after receive_commitment[c]
-    and after after rollup_simple[c,p,L1.blacklist]
+    and after after rollup_simple[c,p]
   )
 }
 
@@ -43,7 +43,7 @@ run rollup_process_test4 {
     some c : Commitment, p : Proof | receive_commitment[c]
     and #c.state > #L1.finalized_state 
     and eventually (L1.finalized_state = c.state and after  
-      rollup_simple[c,p,L1.blacklist])
+      rollup_simple[c,p])
   )
 } for 10
 
@@ -51,13 +51,13 @@ run rollup_process_test4 {
 run {
   spec_L1_blacklist_eager
   eventually (
-  ReceiveComm in events[L1.blacklist]
-  ; ReceiveProof in events[L1.blacklist]
-  ; ProcessSimple in events[L1.blacklist]
-  ; ReceiveComm in events[L1.blacklist]
-  ; ProcessSimple in events[L1.blacklist]
-  ; ReceiveProof in events[L1.blacklist]
-  ; ProcessSimple in events[L1.blacklist]
+  ReceiveComm in events
+  ; ReceiveProof in events
+  ; ProcessSimple in events
+  ; ReceiveComm in events
+  ; ProcessSimple in events
+  ; ReceiveProof in events
+  ; ProcessSimple in events
   )
 } for 10
 
@@ -126,12 +126,11 @@ run cold_rollup_test5 {
   spec_L1_blacklist_eager
   always no ForcedBlacklistPolicy
   eventually (
-  ReceiveComm in events[L1.blacklist]
-  ; ReceiveForced in events[L1.blacklist]
-  ; ReceiveProof in events[L1.blacklist]
-  ; ProcessSimple in events[L1.blacklist]
-  ; ReceiveComm in events[L1.blacklist]
-  ; ProcessSimple in events[L1.blacklist]
+  ReceiveComm in events[]
+  ; ReceiveForced in events[]
+  ; ReceiveProof in events[]
+  ; ProcessSimple in events[]
+  ; ReceiveComm in events[]
   )
 } for 7
 
@@ -227,4 +226,43 @@ run eager_blacklist_test7 {
         and x in L1.forced_queue.elems 
         and p in L1.forced_queue.elems
   )
+}
+
+/* upgrade finished then accept new forced queue */
+run soft_blacklist_test1 {
+  spec_L1_blacklist_soft
+  L1.ongoing_upgrade = none
+  and eventually (some L1.ongoing_upgrade
+   and eventually (no L1.ongoing_upgrade) 
+    and eventually (some L1.forced_queue))
+}
+
+/* inputs get queued upgrade phase */
+run soft_blacklist_test2 {
+  spec_L1_blacklist_soft
+  L1.ongoing_upgrade = none
+  no L1.blacklist
+  and eventually (some L1.ongoing_upgrade
+    and some L1.forced_queue
+   and eventually (no L1.ongoing_upgrade and some L1.blacklist))
+}
+
+/* inputs get finalized during upgrade */
+run soft_blacklist_test3 {
+  spec_L1_blacklist_soft
+  L1.ongoing_upgrade = none
+  no L1.blacklist
+  no L1.finalized_state
+
+  and eventually (some L1.ongoing_upgrade
+    and no L1.finalized_state 
+      and eventually (some L1.finalized_state and some L1.ongoing_upgrade))
+}
+
+/* blacklisted element eventually gets finalized */
+run soft_blacklist_test4 {
+  spec_L1_blacklist_soft
+  no L1.finalized_state
+  some x : Input | x in L1.blacklist
+    and eventually (x in all_finalized_inputs)
 }
