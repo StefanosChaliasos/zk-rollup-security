@@ -1,13 +1,17 @@
 module alloy/rollup_data_model
 
-// Inputs and Blocks
-var sig Input{}
+// Inputs represent transactions submitted by the user
+// for our use cases we can treat inputs as blackboxes
+var sig Input {}
 
+// Blocks encapsulate sequences of inputs
 var sig Block {
- var block_inputs : seq Input
+  var block_inputs : seq Input
 }
 
-// Commitment and Proof objects
+// ZK Objects 
+// Commitment (a.k.a soft receipt) is usually produced by FastVM and submitted to L1
+// Proof is usually produced by slowVM much later than commitment and then sent to L1 for finalization
 var abstract sig ZKObject {
   var state : seq Block,
   var diff : one Block 
@@ -21,21 +25,26 @@ var sig Commitment extends ZKObject{}{
   diff not in state.elems
 }
 
-// Forced events
+// For our rollup model we want L2 events which could be forced through L1
 var abstract sig ForcedEvent {}
 
+// Users can force their inputs by submitting a ForcedInput query
 var sig ForcedInput extends ForcedEvent {
    var tx : one Input
 }
+// Some designated actors can update the blacklisting policy through the forced queue
 var sig ForcedBlacklistPolicy extends ForcedEvent {
    var predicate : set Input
 }
 
+// to start the upgradeability process the upgrade announcement has to be created and submitted
 var abstract sig UpgradeAnnouncement {}
+// one example of upgradeability announcement is update of the blacklist
 var sig BlacklistUpdateAnnouncement extends UpgradeAnnouncement {
   var blacklist_policy : one ForcedBlacklistPolicy
 }
-
+// after announcement users get a period of time to act on the "upgrade announcement". The end of this
+// period is signalled by the timeout event
 var sig Timeout {
   var upgrade : one UpgradeAnnouncement
 }
@@ -58,6 +67,9 @@ one sig L1 {
   not forced_queue.hasDups
 }
 
+
+
+// HELPERS
 fun all_finalized_inputs : set Input {
   { i : Input | i in L1.finalized_state.elems.block_inputs.elems } 
 }
