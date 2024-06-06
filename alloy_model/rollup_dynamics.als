@@ -324,6 +324,12 @@ fact {
   no Timeout
   no ongoing_upgrade
 } 
+//fact {  
+  // no (L1.forced_queue.tx & L1.blacklist)
+  // no (L1.forced_queue & ForcedEvent)
+  // no Timeout
+  // no ongoing_upgrade
+//} 
 
 // event names
 enum Event { Stutter, 

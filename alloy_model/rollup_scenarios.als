@@ -10,7 +10,7 @@ multiple blocks.*/
 pred rollup_process_test1 {
   no L1.proofs
   no L1.commitments
-  eventually (#L1.finalized_state = 2)  
+  eventually (#L1.finalized_state = 2 and #all_finalized_inputs = 3)  
 } 
 
 run {
@@ -258,15 +258,15 @@ pred eager_blacklist_test4 {
  eventually(
     some x : Input |  
         x in L1.blacklist 
-    and (x not in L1.finalized_state.elems.block_inputs.elems) 
-  and eventually (x in L1.finalized_state.elems.block_inputs.elems) 
+    and (x not in all_finalized_inputs) 
+  and eventually (x in all_finalized_inputs) 
   )
 } 
 
 run { 
   spec_blacklist_eager
   eager_blacklist_test4
-} for 7
+} for 6
 
 /* non finalized input which is blacklisted by queued forced policy gets finalized */
 pred eager_blacklist_test5 {

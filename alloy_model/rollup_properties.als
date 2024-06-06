@@ -245,18 +245,22 @@ check {
 } for 5
 
 
-/* if there upgrade was deployed (policy changed) then there
-   was upgrade announce, followed by timeout */
+/* if the upgrade was deployed (policy changed) then there
+   is upgrade announce, followed by timeout */
 pred upgrade_prop1 {
-  always (
-    not L1.blacklist = L1.blacklist' implies
-      once (
-        some a : UpgradeAnnouncement | 
-           a.blacklist_policy.predicate = L1.blacklist'
-           and eventually (some t : Timeout | t.upgrade = a and 
-              not L1.blacklist = a.blacklist_policy.predicate)
-      )
-  )
+always (
+  all is : set Input | L1.blacklist = is and 
+  not L1.blacklist = L1.blacklist'  
+     implies 
+       some x : UpgradeAnnouncement | L1.ongoing_upgrade = x and
+        once (L1.ongoing_upgrade = none and
+              L1.ongoing_upgrade' = x  and
+              L1.blacklist = is and
+              (no { t : Timeout | t.upgrade = x })
+        and ((some t : Timeout | t.upgrade = x)  
+               releases L1.blacklist = is)
+              )
+)
 }
 
 check {
