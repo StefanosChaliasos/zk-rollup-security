@@ -87,6 +87,7 @@ pred receive_forced[f : ForcedEvent] {
   proofs = proofs'
   finalized_state = finalized_state'
   block_inputs = block_inputs'
+  forced_queue = forced_queue'
   state = state'
   diff = diff'
   ForcedEvent' = ForcedEvent
@@ -424,7 +425,8 @@ pred spec_blacklist_eager {
 }
 
 pred spec_blacklist_soft { 
-  always (some events and no ForcedBlacklistPolicy & L1.forced_queue.elems)
+  always (no ForcedBlacklistPolicy & L1.forced_queue.elems)
+  always some events
 }
 
 pred spec_all_censored {
