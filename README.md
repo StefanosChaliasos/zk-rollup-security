@@ -26,11 +26,13 @@ Code accompanying "Towards a formal foundation of blockchain rollups" paper.
    - `stutter`  ensures that traces are infinite
    - `events` set of possible events.
 * `rollup_properties.als` specification of properties.
-   - `simple_rollup_prop*` - properties associated with the basic ("strawnan") rollups;
-   - `cold_rollup_prop*` - properties associated with forced queues;
-   - `blacklist_prop*` - properties associated with rollups with "eager" blacklists updated through the forced queue;
-   - `upgrade_prop*` - properties associated with "soft" blacklists updated through the upgradeability mechanism;
+   - `srp*` - properties associated with the basic ("strawnan") rollups;
+   - `fqp*` - properties associated with forced queues;
+   - `bp*` - properties associated with rollups with "eager" blacklists updated through the forced queue;
+   - `up*` - properties associated with "soft" blacklists updated through the upgradeability mechanism;
 * `rollup_scenarios.als` various scenarios for testing.
+
+For a thorough documentation of the codebase and the mapping you can check `DOCUMENTATION.md`
 
 ## Running Alloy Checks through VSCode plug-in
 
@@ -124,3 +126,18 @@ This will create `rollup_properties_20_8.als` with all check commands using `for
 **Note:**
 - You must have `rollup_properties_template_N_M.als` in the same directory as the script.
 - The script will print the output filename if successful.
+
+## Benchmarks
+
+```
+./prepare_template.sh 5 15
+java -cp ".:lib/*" AlloyRunner rollup_properties_5_15.als results_5_15
+./prepare_template.sh 10 15
+java -cp ".:lib/*" AlloyRunner rollup_properties_10_15.als results_10_15
+./prepare_template.sh 15 15
+java -cp ".:lib/*" AlloyRunner rollup_properties_15_15.als results_15_15
+```
+
+### Results
+
+TODO
