@@ -3,3 +3,4 @@
 tags
 lib/
 results*/
+*.class
