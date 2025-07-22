@@ -148,40 +148,40 @@ The implementation consists of four main Alloy modules:
 
 | Property Name | Description | Implementation | Location |
 |--------------|-------------|----------------|----------|
-| SRP1 | Event Granularity | `check c_simple_rollup_prop1` | `rollup_properties.als:8-13` |
-| SRP2 | Monotonic State | `pred simple_rollup_prop3` | `rollup_properties.als:40-48` |
-| SRP3 | Justified State | `pred simple_rollup_prop2` | `rollup_properties.als:19-36` |
-| SRP4 | State Progression Validity | `pred simple_rollup_prop4` | `rollup_properties.als:53-67` |
+| SRP1 | Event Granularity | `check c_srp1` | `rollup_properties.als:8-13` |
+| SRP2 | Monotonic State | `pred srp2` | `rollup_properties.als:40-48` |
+| SRP3 | Justified State | `pred srp3` | `rollup_properties.als:19-36` |
+| SRP4 | State Progression Validity | `pred srp4` | `rollup_properties.als:53-67` |
 
 ### Forced Queue Properties (FQP)
 
 | Property Name | Description | Implementation | Location |
 |--------------|-------------|----------------|----------|
-| FQP1 | Guaranteed Processing | `pred cold_rollup_prop1` | `rollup_properties.als:73-85` |
-| FQP2 | Forced Queue Stable | `pred cold_rollup_prop2` | `rollup_properties.als:88-99` |
-| FQP3 | State Invariant | `pred cold_rollup_prop3` | `rollup_properties.als:102-113` |
-| FQP4 | Forced Inputs Progress | `pred cold_rollup_prop4` | `rollup_properties.als:116-131` |
-| FQP5 | Order Preservation | `pred cold_rollup_prop6` | `rollup_properties.als:148-164` |
-| FQP6 | Finalization Confirmation | `pred cold_rollup_prop5` | `rollup_properties.als:135-145` |
+| FQP1 | Guaranteed Processing | `pred fqp1` | `rollup_properties.als:73-85` |
+| FQP2 | Forced Queue Stable | `pred fqp2` | `rollup_properties.als:88-99` |
+| FQP3 | State Invariant | `pred fqp3` | `rollup_properties.als:102-113` |
+| FQP4 | Forced Inputs Progress | `pred fqp4` | `rollup_properties.als:116-131` |
+| FQP5 | Order Preservation | `pred fqp5` | `rollup_properties.als:148-164` |
+| FQP6 | Finalization Confirmation | `pred fqp6` | `rollup_properties.als:135-145` |
 
 ### Blacklist Properties (BP)
 
 | Property Name | Description | Implementation | Location |
 |--------------|-------------|----------------|----------|
-| BP1 | Non-blacklisted Finalization | `pred blacklist_prop1` | `rollup_properties.als:167-178` |
-| BP2 | Forced Queue Integrity | `pred blacklist_prop2` | `rollup_properties.als:182-191` |
-| BP3 | Head Position Security | `pred blacklist_prop6` | `rollup_properties.als:205-214` |
-| BP4 | Future Policy Compliance | `pred blacklist_prop7` | `rollup_properties.als:217-229` |
-| BP5 | Following Active Policy | `pred blacklist_prop8` | `rollup_properties.als:234-245` |
+| BP1 | Non-blacklisted Finalization | `pred bp1` | `rollup_properties.als:167-178` |
+| BP2 | Forced Queue Integrity under Censorship | `pred bp2` | `rollup_properties.als:182-191` |
+| BP3 | Head Position Security | `pred bp3` | `rollup_properties.als:205-214` |
+| BP4 | Future Policy Compliance | `pred bp4` | `rollup_properties.als:217-229` |
+| BP5 | Following Active Policy | `pred bp5` | `rollup_properties.als:234-245` |
 
 ### Upgrade Properties (UP)
 
 | Property Name | Description | Implementation | Location |
 |--------------|-------------|----------------|----------|
-| UP1 | Upgrade Announcement Consistency | `pred upgrade_prop1` | `rollup_properties.als:250-268` |
-| UP2 | Finalization Before Upgrade | `pred upgrade_prop2` | `rollup_properties.als:271-286` |
-| UP3 | Post-Upgrade System Integrity | `pred upgrade_prop3` | `rollup_properties.als:290-299` |
-| UP4 | Blacklist Consistency During Upgrade | `pred upgrade_prop4` | `rollup_properties.als:302-315` |
+| UP1 | Consistency of Upgrade Announcement, Timeout, and Enforcement | `pred up1` | `rollup_properties.als:250-268` |
+| UP2 | Finalization of Forced Inputs before the Upgrade | `pred up2` | `rollup_properties.als:271-286` |
+| UP3 | Post-Upgrade System Integrity | `pred up3` | `rollup_properties.als:290-299` |
+| UP4 | Consistency of Blacklisting During Upgrades | `pred up4` | `rollup_properties.als:302-315` |
 
 ## Scenarios and Testing
 
@@ -228,7 +228,6 @@ When a property fails:
 To add new properties:
 1. Define the property predicate in `rollup_properties.als`
 2. Create a check command that tests it against appropriate specifications
-3. Document the property's correspondence to the paper
 
 ## Key Implementation Details
 
@@ -244,8 +243,6 @@ To add new properties:
 - Uses Alloy's temporal operators: `always`, `eventually`, `once`, `releases`
 - Example: `rollup_properties.als:20-29` uses `once` for past verification
 
-### Small Scope Hypothesis
-- Properties verified in bounded scope
-- Typical scope: 5 objects, 1-5 steps
+## Model a specific Rollup implementation
 
-This documentation provides a complete mapping between the theoretical framework and implementation, enabling reviewers to trace any claim in the paper to its corresponding code implementation.
+To model a specific rollup you can extend/modify the provided model. In some cases some changes in the dynamics might required. For an example, look at `SCROLL.md` to understand how we modeled the forced queue mechanism of Scroll.

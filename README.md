@@ -49,7 +49,10 @@ This project includes a Java utility (`AlloyRunner.java`) for running Alloy chec
 ### Instructions to install everything in a clean Ubuntu 24.04 LTS
 
 ```
-
+sudo apt install default-jre default-jdk
+mkdir lib
+curl -L -o lib/org.alloytools.alloy.dist.jar \
+  https://github.com/AlloyTools/org.alloytools.alloy/releases/download/v6.2.0/org.alloytools.alloy.dist.jar
 ```
 
 ### **Compiling**
