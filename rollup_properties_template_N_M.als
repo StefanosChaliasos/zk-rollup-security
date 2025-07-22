@@ -10,7 +10,7 @@ check c_simple_rollup_prop1 {
   spec_forced_queue implies always lone events
   spec_blacklist_eager implies always lone events
   spec_blacklist_soft implies always lone events
-} for 5 but 1..5 steps
+} for {{N}} but 1..{{M}} steps
 
 
 /* if block gets finilized then at some moment 
@@ -33,7 +33,7 @@ check c_simple_rollup_prop2 {
   spec_forced_queue implies simple_rollup_prop2
   spec_blacklist_eager implies simple_rollup_prop2
   spec_blacklist_soft implies simple_rollup_prop2
-} for 5 but 1..5 steps
+} for {{N}} but 1..{{M}} steps
 
 
 /* final state grows monotonically */
@@ -45,7 +45,7 @@ check c_simple_rollup_prop3 {
   spec_forced_queue implies simple_rollup_prop3
   spec_blacklist_eager implies simple_rollup_prop3
   spec_blacklist_soft implies simple_rollup_prop3
-} for 5 but 1..5 steps
+} for {{N}} but 1..{{M}} steps
 
 /* The commitment/proof which is smaller than current state never 
    gets successfully processed.
@@ -64,7 +64,7 @@ check c_simple_rollup_prop4 {
   spec_forced_queue implies simple_rollup_prop4
   spec_blacklist_eager implies simple_rollup_prop4
   spec_blacklist_soft implies simple_rollup_prop4
-} for 5 but 1..5 steps
+} for {{N}} but 1..{{M}} steps
 
 
 /* if forced_queue is non-empty and something was added to the finalized-state
@@ -82,7 +82,7 @@ check c_cold_rollup_prop1 {
   spec_forced_queue implies cold_rollup_prop1
   spec_blacklist_eager implies cold_rollup_prop1 
   spec_blacklist_soft implies cold_rollup_prop1 
-} for 5 but 1..5 steps
+} for {{N}} but 1..{{M}} steps
 
 /* if finalized state didn't change then forced_queue only increased */
 pred cold_rollup_prop2 {
@@ -96,7 +96,7 @@ check c_cold_rollup_prop2 {
   spec_forced_queue implies cold_rollup_prop2
   spec_blacklist_eager implies cold_rollup_prop2 
   spec_blacklist_soft implies cold_rollup_prop2 
-} for 5 but 1..5 steps
+} for {{N}} but 1..{{M}} steps
 
 /* if queue is not empty and didn't change then finalized_state didn' change */
 pred cold_rollup_prop3 {
@@ -110,7 +110,7 @@ check c_cold_rollup_prop3 {
   spec_forced_queue implies cold_rollup_prop3
   spec_blacklist_eager implies cold_rollup_prop3 
   spec_blacklist_soft implies cold_rollup_prop3 
-} for 5 but 1..5 steps
+} for {{N}} but 1..{{M}} steps
 
 /* forced txs which were not processed move down in the forced queue */
 pred cold_rollup_prop4 {
@@ -128,7 +128,7 @@ check c_cold_rollup_prop4 {
   spec_forced_queue implies cold_rollup_prop4
   spec_blacklist_eager implies cold_rollup_prop4
   spec_blacklist_soft implies cold_rollup_prop4
-} for 5 but 1..5 steps
+} for {{N}} but 1..{{M}} steps
 
 /* if forced input was in the forced queue and then disappeared from it then
  it was finalized */
@@ -142,7 +142,7 @@ check c_cold_rollup_prop5 {
   spec_forced_queue implies cold_rollup_prop5
   spec_blacklist_eager implies cold_rollup_prop5
   spec_blacklist_soft implies cold_rollup_prop5
-} for 5 but 1..5 steps
+} for {{N}} but 1..{{M}} steps
 
 /* forced txs which were not processed retain their relative order */
 pred cold_rollup_prop6 {
@@ -161,7 +161,7 @@ check c_cold_rollup_prop6 {
   spec_forced_queue implies cold_rollup_prop6
   spec_blacklist_eager implies cold_rollup_prop6
   spec_blacklist_soft implies cold_rollup_prop6
-} for 5 but 1..5 steps
+} for {{N}} but 1..{{M}} steps
 
 /* if input is finalized then it is not in the blacklist */
 pred blacklist_prop1 {
@@ -175,7 +175,7 @@ pred blacklist_prop1 {
 check c_blacklist_prop1 {
   spec_blacklist_eager implies blacklist_prop1
   spec_blacklist_soft implies blacklist_prop1
- } for 5 but 1..5 steps
+ } for {{N}} but 1..{{M}} steps
 
 /* if censored input is in the head of the forced_queue 
    then finalized state will never change */
@@ -188,7 +188,7 @@ pred blacklist_prop2 {
 check c_blacklist_prop2 {
   spec_blacklist_eager implies blacklist_prop2 
   spec_blacklist_soft implies blacklist_prop2 
-} for 5 but 1..5 steps
+} for {{N}} but 1..{{M}} steps
 
 
 
@@ -199,7 +199,7 @@ pred blacklist_prop5 {
 check c_blacklist_prop5 {
   spec_blacklist_eager implies blacklist_prop5
   spec_blacklist_soft implies blacklist_prop5
-} for 5 but 1..5 steps
+} for {{N}} but 1..{{M}} steps
 
 /* blacklisted can never appear in the head position of the queue */
 pred blacklist_prop6 {
@@ -211,7 +211,7 @@ pred blacklist_prop6 {
 check c_blacklist_prop6 {
   spec_blacklist_eager implies blacklist_prop6
   spec_blacklist_soft implies blacklist_prop6
- } for 5 but 1..5 steps
+ } for {{N}} but 1..{{M}} steps
 
 /* all inputs which stand behind new blacklist policy are not blacklisted by it */
 pred blacklist_prop7 {
@@ -226,7 +226,7 @@ pred blacklist_prop7 {
 check c_blacklist_prop7 {
   spec_blacklist_eager implies blacklist_prop7
   spec_blacklist_soft implies blacklist_prop7
-} for 5 but 1..5 steps
+} for {{N}} but 1..{{M}} steps
 
 
 /*  if input got forced and there is no queued blacklisting policy 
@@ -242,7 +242,7 @@ pred blacklist_prop8 {
 check c_blacklist_prop8 {
   spec_blacklist_eager implies blacklist_prop8
   spec_blacklist_soft implies blacklist_prop8
-} for 5 but 1..5 steps
+} for {{N}} but 1..{{M}} steps
 
 
 /* if the upgrade was deployed (policy changed) then there
@@ -265,7 +265,7 @@ always (
 
 check c_upgrade_prop1 {
   spec_blacklist_soft implies upgrade_prop1
-} for 5 but 1..5 steps
+} for {{N}} but 1..{{M}} steps
 
 /* after upgrade all forced inputs were finalized */
 pred upgrade_prop2 {
@@ -283,7 +283,7 @@ pred upgrade_prop2 {
 
 check c_upgrade_prop2 {
   spec_blacklist_soft implies upgrade_prop2
-} for 5 but 1..5 steps
+} for {{N}} but 1..{{M}} steps
 
 /* if policy changed then no ongoing upgrade is happening 
    (forced queue is unlocked, and rollup process is unlocked) */
@@ -296,7 +296,7 @@ pred upgrade_prop3 {
 }
 check c_upgrade_prop3 {
   spec_blacklist_soft implies upgrade_prop3
-} for 5 but 1..5 steps
+} for {{N}} but 1..{{M}} steps
 
 /* as long as upgrade is ongoing L1.blacklist does not change */
 pred upgrade_prop4 {
@@ -312,5 +312,6 @@ pred upgrade_prop4 {
 
 check c_upgrade_prop4 {
   spec_blacklist_soft implies upgrade_prop4
-} for 5 but 1..5 steps
+} for {{N}} but 1..{{M}} steps
 
+ 

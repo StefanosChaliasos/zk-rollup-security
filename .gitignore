@@ -1,3 +1,5 @@
 .DS_STORE
 .*.swp
 tags
+lib/
+results*/
