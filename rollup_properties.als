@@ -146,6 +146,7 @@ check c_fqp5 {
   spec_blacklist_eager implies fqp5
   spec_blacklist_soft implies fqp5
 } for 5 but 1..5 steps
+
 /* FQP6: Finalization Confirmation - if forced input was in the forced queue and then disappeared from it then
  it was finalized */
 pred fqp6 {
