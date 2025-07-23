@@ -157,6 +157,13 @@ pred normal_batch_commit[c: Commitment, p: Proof] {
     unfinalized_messages.first.enforced_input.tx in c.diff.block_inputs.elems
   }
   
+  // Enforce FIFO: Can't process qm2 without processing qm1 first
+  all i, j : Int | 
+    (i >= 0 and i < j and j < #unfinalized_messages and
+     unfinalized_messages[j].enforced_input.tx in c.diff.block_inputs.elems)
+    implies
+     unfinalized_messages[i].enforced_input.tx in c.diff.block_inputs.elems
+  
   // Update finalized state
   ScrollL1.finalized_state' = ScrollL1.finalized_state.add[p.diff]
   ScrollL1.last_finalized_batch_timestamp' = ScrollL1.current_timestamp
@@ -166,10 +173,14 @@ pred normal_batch_commit[c: Commitment, p: Proof] {
   ScrollL1.commitments' = ScrollL1.commitments - (c + { q : Commitment | #q.state < #ScrollL1.finalized_state' })
   
   // Update unfinalized index based on processed messages
-  // Count how many enforced messages were processed in this batch
-  let processed_enforced = { qm : QueuedMessage | 
-    qm in unfinalized_messages.elems and qm.enforced_input.tx in c.diff.block_inputs.elems } | {
-    ScrollL1.next_unfinalized_index' = ScrollL1.next_unfinalized_index.plus[#processed_enforced]
+  // Must count only consecutive messages from the front that were processed (FIFO)
+  // Find the maximum number of consecutive messages from front that were processed
+  let consecutive_processed = max[{ i : Int | 
+    i >= 0 and i <= #unfinalized_messages and
+    all j : Int | (j >= 0 and j < i) implies 
+      unfinalized_messages[j].enforced_input.tx in c.diff.block_inputs.elems
+  }] | {
+    ScrollL1.next_unfinalized_index' = ScrollL1.next_unfinalized_index.plus[consecutive_processed]
   }
 
   // Frame conditions

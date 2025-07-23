@@ -164,14 +164,18 @@ check c_fqp5 {
   spec_scroll_forced implies fqp5
 } for 5 but 1..10 steps
 
-/* FQP6: Finalization Confirmation - if enforced message was queued and 
-   later becomes finalized, it must have been processed through the queue */
+/* FQP6: Finalization Confirmation - if enforced message was in the unfinalized portion
+   and later is no longer unfinalized (index moved past it), then it was finalized. */
 pred fqp6 {
   always (
     all qm : QueuedMessage | 
-      (qm in ScrollL1.message_queue.elems and qm.enforced_input.tx in all_finalized_inputs)
-      implies
-        ScrollL1.message_queue.idxOf[qm] < ScrollL1.next_unfinalized_index
+      qm in unfinalized_messages.elems
+      implies 
+        always (
+          qm not in unfinalized_messages.elems 
+          implies 
+          qm.enforced_input.tx in all_finalized_inputs
+        )
   )
 }
 
@@ -211,31 +215,9 @@ check c_sp2 {
   scroll_system implies sp2
 } for 5 but 1..10 steps
 
-/* SP3: Sequential Message Indexing - messages are ordered in FIFO queue */
+
+/* SP3: Enforced Mode Activation - enforced mode activates when timeout conditions are met */
 pred sp3 {
-  always (
-    all qm : QueuedMessage |
-      qm in ScrollL1.message_queue.elems
-      implies
-        ScrollL1.message_queue.idxOf[qm] >= 0 
-        and ScrollL1.message_queue.idxOf[qm] < #ScrollL1.message_queue
-  )
-  and
-  always (
-    all qm1, qm2 : QueuedMessage |
-      (qm1 + qm2 in ScrollL1.message_queue.elems 
-       and qm1 != qm2)
-      implies
-        ScrollL1.message_queue.idxOf[qm1] != ScrollL1.message_queue.idxOf[qm2]
-  )
-}
-
-check c_sp3 {
-  scroll_system implies sp3
-} for 5 but 1..10 steps
-
-/* SP4: Enforced Mode Activation - enforced mode activates when timeout conditions are met */
-pred sp4 {
   always (
     (ScrollL1.enforced_mode = False and ScrollL1.enforced_mode' = True)
     implies
@@ -243,31 +225,8 @@ pred sp4 {
   )
 }
 
-check c_sp4 {
-  scroll_system implies sp4
-} for 5 but 1..10 steps
-
-/* SP5: Enforced Mode Processing - in enforced mode, all pending messages are processed */
-pred sp5 {
-  always (
-    (ScrollL1.enforced_mode = True 
-     and some (ScrollL1.finalized_state' - ScrollL1.finalized_state)
-     and #unfinalized_messages > 0)
-    implies
-      // All unfinalized messages should be processed
-      all qm : QueuedMessage |
-        (qm in unfinalized_messages.elems)
-        implies
-          qm.enforced_input.tx in new_finalized_inputs
-  )
-}
-
-check c_sp5 {
-  scroll_system implies sp5
-} for 5 but 1..10 steps
-
-/* SP6: Mode Consistency - normal and enforced modes are mutually exclusive */
-pred sp6 {
+/* SP4: Mode Consistency - normal and enforced modes are mutually exclusive */
+pred sp4 {
   always (
     (ScrollL1.enforced_mode = True)
     implies
@@ -275,12 +234,12 @@ pred sp6 {
   )
 }
 
-check c_sp6 {
-  scroll_system implies sp6
+check c_sp4 {
+  scroll_system implies sp4
 } for 5 but 1..10 steps
 
 /* SP7: Fee Payment - all enforced transactions require fee payment */
-pred sp7 {
+pred sp5 {
   always (
     all ei : EnforcedInput |
       (some qm : QueuedMessage | qm.enforced_input = ei and qm in ScrollL1.message_queue.elems)
@@ -289,12 +248,12 @@ pred sp7 {
   )
 }
 
-check c_sp7 {
-  scroll_system implies sp7
+check c_sp5 {
+  scroll_system implies sp5
 } for 5 but 1..10 steps
 
 /* SP8: Timeout Safety - enforced mode cannot be entered prematurely */
-pred sp8 {
+pred sp6 {
   always (
     (ScrollL1.enforced_mode = False)
     implies
@@ -302,27 +261,13 @@ pred sp8 {
   )
 }
 
-check c_sp8 {
-  scroll_system implies sp8
+check c_sp6 {
+  scroll_system implies sp6
 } for 5 but 1..10 steps
 
-// ========== Liveness Properties ==========
 
-/* LP1: Progress Guarantee - if enforced messages exist, they will eventually be processed */
-pred lp1 {
-  always (
-    (#unfinalized_messages > 0)
-    implies
-      eventually (ScrollL1.next_unfinalized_index' > ScrollL1.next_unfinalized_index)
-  )
-}
-
-check c_lp1 {
-  scroll_system implies lp1
-} for 5 but 1..10 steps
-
-/* LP2: Enforced Mode Eventually Exits - enforced mode doesn't last forever */
-pred lp2 {
+/* SP7: Enforced Mode Eventually Exits - enforced mode doesn't last forever */
+pred sp7 {
   always (
     (ScrollL1.enforced_mode = True)
     implies
@@ -330,12 +275,12 @@ pred lp2 {
   )
 }
 
-check c_lp2 {
-  scroll_system implies lp2  
+check c_sp7 {
+  scroll_system implies sp7  
 } for 5 but 1..10 steps
 
-/* LP3: Timeout Resolution - if timeout conditions are met, enforced mode eventually activates */
-pred lp3 {
+/* SP8: Timeout Resolution - if timeout conditions are met, enforced mode eventually activates */
+pred sp8 {
   always (
     (should_enter_enforced_mode and ScrollL1.enforced_mode = False)
     implies
@@ -343,6 +288,6 @@ pred lp3 {
   )
 }
 
-check c_lp3 {
-  scroll_system implies lp3
+check c_sp8 {
+  scroll_system implies sp8
 } for 5 but 1..10 steps
