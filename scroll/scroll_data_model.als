@@ -4,11 +4,8 @@ module scroll/scroll_data_model
 abstract sig Bool {}
 one sig True, False extends Bool {}
 
-// Addresses represent Ethereum addresses
-// We distinguish between EOAs and contracts for aliasing logic
+// Addresses represent Ethereum addresses (simplified, no aliasing)
 var abstract sig Address {}
-var sig EOA extends Address {}
-var sig Contract extends Address {}
 
 // Inputs represent transactions submitted by users
 var sig Input {}
@@ -80,10 +77,6 @@ one sig ScrollL1 {
   next_unfinalized_index <= #message_queue
 }
 
-// Address aliasing helper - simplified version of AddressAliasHelper
-fun apply_l1_to_l2_alias[addr : Address] : Address {
-  addr in Contract implies addr else addr  // Abstract: contracts get aliased, EOAs don't
-}
 
 // Helper functions
 fun all_finalized_inputs : set Input {

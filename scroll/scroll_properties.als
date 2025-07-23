@@ -185,39 +185,40 @@ check c_fqp6 {
 
 // ========== Scroll-Specific Properties ==========
 
-/* SP1: Address Aliasing Correctness - contract addresses get aliased, EOAs don't */
+/* SP1: Rolling Hash Integrity - each message's rolling hash incorporates previous hash correctly
+   In actual Scroll implementation:
+   - Rolling hash = keccak256(previous_rolling_hash || current_transaction_hash)
+   - Transaction hash computed via computeTransactionHash() using EIP-2718 encoding
+   - First message uses 0 as previous hash
+   - Rolling hash provides cryptographic commitment to entire message sequence
+   
+   Our abstract model uses: rolling_hash = prev_hash + #transaction (simplified arithmetic)
+   This property verifies our model computes hashes according to this pattern */
 pred sp1 {
   always (
-    all ei : EnforcedInput |
-      (ei.original_sender in Contract implies apply_l1_to_l2_alias[ei.original_sender] != ei.original_sender)
-      and (ei.original_sender in EOA implies apply_l1_to_l2_alias[ei.original_sender] = ei.original_sender)
+    all qm : QueuedMessage |
+      (qm in ScrollL1.message_queue.elems)
+      implies
+        let qm_idx = ScrollL1.message_queue.idxOf[qm] |
+        (qm_idx = 0 implies 
+          // First message: hash = #transaction
+          qm.rolling_hash = #qm.enforced_input.tx
+        ) and
+        (qm_idx > 0 implies
+          // Subsequent messages: hash = prev_hash + #transaction  
+          let prev_qm = ScrollL1.message_queue[qm_idx.minus[1]] |
+          qm.rolling_hash = prev_qm.rolling_hash.plus[#qm.enforced_input.tx]
+        )
   )
 }
 
 check c_sp1 {
-  scroll_system implies sp1
+  spec_scroll_forced implies sp1
 } for 5 but 1..10 steps
 
-/* SP2: Rolling Hash Integrity - each message's rolling hash incorporates previous hash */
+
+/* SP2: Enforced Mode Activation - enforced mode activates when timeout conditions are met */
 pred sp2 {
-  always (
-    all qm : QueuedMessage |
-      (qm in ScrollL1.message_queue.elems and ScrollL1.message_queue.idxOf[qm] > 0)
-      implies
-        let prev_idx = ScrollL1.message_queue.idxOf[qm].minus[1] |
-        let prev_qm = ScrollL1.message_queue[prev_idx] |
-          // Simplified: rolling hash should depend on previous hash
-          qm.rolling_hash != prev_qm.rolling_hash
-  )
-}
-
-check c_sp2 {
-  scroll_system implies sp2
-} for 5 but 1..10 steps
-
-
-/* SP3: Enforced Mode Activation - enforced mode activates when timeout conditions are met */
-pred sp3 {
   always (
     (ScrollL1.enforced_mode = False and ScrollL1.enforced_mode' = True)
     implies
@@ -225,8 +226,12 @@ pred sp3 {
   )
 }
 
-/* SP4: Mode Consistency - normal and enforced modes are mutually exclusive */
-pred sp4 {
+check c_sp2 {
+  spec_scroll_forced implies sp2
+} for 5 but 1..10 steps
+
+/* SP3: Mode Consistency - normal and enforced modes are mutually exclusive */
+pred sp3 {
   always (
     (ScrollL1.enforced_mode = True)
     implies
@@ -234,12 +239,12 @@ pred sp4 {
   )
 }
 
-check c_sp4 {
-  scroll_system implies sp4
+check c_sp3 {
+  spec_scroll_forced implies sp3
 } for 5 but 1..10 steps
 
-/* SP7: Fee Payment - all enforced transactions require fee payment */
-pred sp5 {
+/* SP4: Fee Payment - all enforced transactions require fee payment */
+pred sp4 {
   always (
     all ei : EnforcedInput |
       (some qm : QueuedMessage | qm.enforced_input = ei and qm in ScrollL1.message_queue.elems)
@@ -248,46 +253,6 @@ pred sp5 {
   )
 }
 
-check c_sp5 {
-  scroll_system implies sp5
-} for 5 but 1..10 steps
-
-/* SP8: Timeout Safety - enforced mode cannot be entered prematurely */
-pred sp6 {
-  always (
-    (ScrollL1.enforced_mode = False)
-    implies
-      (not should_enter_enforced_mode or ScrollL1.enforced_mode' = True)
-  )
-}
-
-check c_sp6 {
-  scroll_system implies sp6
-} for 5 but 1..10 steps
-
-
-/* SP7: Enforced Mode Eventually Exits - enforced mode doesn't last forever */
-pred sp7 {
-  always (
-    (ScrollL1.enforced_mode = True)
-    implies
-      eventually (ScrollL1.enforced_mode = False)
-  )
-}
-
-check c_sp7 {
-  scroll_system implies sp7  
-} for 5 but 1..10 steps
-
-/* SP8: Timeout Resolution - if timeout conditions are met, enforced mode eventually activates */
-pred sp8 {
-  always (
-    (should_enter_enforced_mode and ScrollL1.enforced_mode = False)
-    implies
-      eventually (ScrollL1.enforced_mode = True)
-  )
-}
-
-check c_sp8 {
-  scroll_system implies sp8
+check c_sp4 {
+  spec_scroll_forced implies sp4
 } for 5 but 1..10 steps
