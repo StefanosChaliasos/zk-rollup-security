@@ -173,3 +173,10 @@ Two lines are plotted:
 - **Scope 10** (orange squares)
 
 Shaded regions around each line indicate the min-max range of execution times for each step, capturing the variance across different properties.
+
+## Alloy Metamodel for the Forced Queue and Upgradeability Model
+
+The figure below illustrates the metamodel used for formalizing the forced queue and upgradeability model in Alloy. The metamodel depicts various components and their connections within the system.
+
+![Alloy Metamodel](figs/metamodel_new.pdf)
+
