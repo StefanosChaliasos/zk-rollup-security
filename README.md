@@ -129,15 +129,47 @@ This will create `rollup_properties_20_8.als` with all check commands using `for
 
 ## Benchmarks
 
-```
-./prepare_template.sh 5 15
-java -cp ".:lib/*" AlloyRunner rollup_properties_5_15.als results_5_15
-./prepare_template.sh 10 15
-java -cp ".:lib/*" AlloyRunner rollup_properties_10_15.als results_10_15
+```bash
+./prepare_template.sh 5 10
+java -cp ".:lib/*" AlloyRunner rollup_properties_5_10.als results_5_10
+./prepare_template.sh 10 10
+java -cp ".:lib/*" AlloyRunner rollup_properties_10_10.als results_10_10
+# Any other config
 ./prepare_template.sh 15 15
 java -cp ".:lib/*" AlloyRunner rollup_properties_15_15.als results_15_15
 ```
 
 ### Results
 
-TODO
+You should move your results to `results` directory. This directory is pre-populated with results for 5_10 and 10_10 from a Mac M1 Max with 64 GB RAM.
+
+To get a thorough analysis of the results run the following script (after installing the dependencies):
+
+```bash
+python analyze_results.py
+```
+
+This will create a thorough report in the CLI and it will produce various reports in the directory `reports`.
+
+Here are some of the main results we got on the aforementioned machine.
+
+#### MECHANISM SUMMARY TABLE (MEDIAN VALUES) - Scope 5, Steps 1-10
+
+| Mechanism | Lines of Code | No. of Clauses | Solve time (sec) |
+|-----------|---------------|-----------------|------------------|
+| Simple | 295 | 181,856 | 4.901 |
+| Forced Queue | 529 | 202,117 | 2.032 |
+| Blacklist | 721 | 183,273 | 2.715 |
+| Upgradeability | 970 | 247,198 | 1.649 |
+
+![Alloy Verification Performance](reports/alloy_verification_performance.png)
+
+**Figure: Alloy Verification Performance**
+
+This figure displays the execution time (in seconds, log scale) required to verify security properties for different zk-rollup mechanisms as a function of the number of steps, for two different scope sizes (5 and 10). The x-axis shows the number of steps (from 1 to 10), while the y-axis shows the execution time on a logarithmic scale, ranging from 0.1 to 10,000 seconds. 
+
+Two lines are plotted:
+- **Scope 5** (blue circles)
+- **Scope 10** (orange squares)
+
+Shaded regions around each line indicate the min-max range of execution times for each step, capturing the variance across different properties.
