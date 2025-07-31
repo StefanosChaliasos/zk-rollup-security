@@ -153,14 +153,15 @@ This will create a thorough report in the CLI and it will produce various report
 
 Here are some of the main results we got on the aforementioned machine.
 
-#### MECHANISM SUMMARY TABLE (MEDIAN VALUES) - Scope 5, Steps 1-10
+#### CUMULATIVE MECHANISM SUMMARY TABLE - Scope 5, Steps 1-10
 
-| Mechanism | Lines of Code | No. of Clauses | Solve time (sec) |
-|-----------|---------------|-----------------|------------------|
-| Simple | 295 | 181,856 | 4.901 |
-| Forced Queue | 529 | 202,117 | 2.032 |
-| Blacklist | 721 | 183,273 | 2.715 |
-| Upgradeability | 970 | 247,198 | 1.649 |
+| Combination | Lines of Code | Clauses (Sum) | Time (Sum) |
+|-------------|----------------|----------------|------------|
+| Simple | 295 | 1,814,483 | 63.603 |
+| Forced | 529 | 3,633,032 | 89.623 |
+| Blacklist | 721 | 5,461,695 | 152.688 |
+| Upgrade | 970 | 6,149,438 | 125.703 |
+| Upgrade+Blacklist | - | 7,978,101 | 188.768 |
 
 ![Alloy Verification Performance](reports/alloy_verification_performance.png)
 

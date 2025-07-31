@@ -98,7 +98,7 @@ def create_comprehensive_mechanism_tables():
     # Add mechanism categorization
     scope5_data['Mechanism'] = scope5_data['Command'].apply(categorize_mechanism)
     
-    # Get only the first property for each mechanism
+    # Get only the first property for each mechanism (excluding c_blacklist_prop_all_censored which has 0 clauses)
     first_properties = {
         'Simple': 'c_srp1',
         'Forced Queue': 'c_fqp1', 
@@ -161,17 +161,260 @@ def create_comprehensive_mechanism_tables():
     
     print("All LaTeX tables have been saved to the reports directory.")
     
+    # Create comprehensive mechanism summary table
+    create_comprehensive_mechanism_table(filtered_data)
+    
+    # Create cumulative mechanism tables
+    create_cumulative_mechanism_tables(filtered_data)
+    
     # Create detailed property tables
     create_detailed_property_tables(filtered_data)
+
+def create_comprehensive_mechanism_table(filtered_data):
+    """Create a comprehensive mechanism summary table with property counts and statistics."""
+    
+    # Define properties for each mechanism
+    properties = {
+        'Simple': ['c_srp1', 'c_srp2', 'c_srp3', 'c_srp4'],
+        'Forced Queue': ['c_fqp1', 'c_fqp2', 'c_fqp3', 'c_fqp4', 'c_fqp5', 'c_fqp6'],
+        'Blacklist': ['c_bp1', 'c_bp2', 'c_bp3', 'c_bp4', 'c_bp5'],
+        'Upgradeability': ['c_up1', 'c_up2', 'c_up3', 'c_up4']
+    }
+    
+    step_ranges = [5, 10]
+    
+    for steps in step_ranges:
+        # Filter data for current step range
+        step_data = filtered_data[filtered_data['Step_num'] <= steps]
+        
+        # Calculate statistics for each mechanism
+        mechanism_stats = []
+        
+        for mechanism, prop_list in properties.items():
+            # Filter data for this mechanism
+            mech_data = step_data[step_data['Command'].str.contains('|'.join(prop_list))]
+            
+            if not mech_data.empty:
+                # Calculate statistics
+                total_properties = len(prop_list)
+                clauses_median = mech_data['Clauses'].median()
+                clauses_max = mech_data['Clauses'].max()
+                clauses_sum = mech_data['Clauses'].sum()
+                time_median = mech_data['Time_seconds'].median()
+                time_max = mech_data['Time_seconds'].max()
+                time_sum = mech_data['Time_seconds'].sum()
+                
+                # Add lines of code
+                loc_mapping = {
+                    'Simple': 295,
+                    'Forced Queue': 529,
+                    'Blacklist': 721,
+                    'Upgradeability': 970
+                }
+                
+                mechanism_stats.append({
+                    'Mechanism': mechanism,
+                    'Total_Properties': total_properties,
+                    'Lines_of_Code': loc_mapping[mechanism],
+                    'Clauses_Median': clauses_median,
+                    'Clauses_Max': clauses_max,
+                    'Clauses_Sum': clauses_sum,
+                    'Time_Median': time_median,
+                    'Time_Max': time_max,
+                    'Time_Sum': time_sum
+                })
+        
+        # Sort by mechanism name
+        mechanism_stats.sort(key=lambda x: x['Mechanism'])
+        
+        # Print table
+        print(f"\n{'='*100}")
+        print(f"COMPREHENSIVE MECHANISM SUMMARY TABLE - Scope 5, Steps 1-{steps}")
+        print(f"{'='*100}")
+        print()
+        print("| Mechanism | Total Properties | Lines of Code | Clauses (Median) | Clauses (Max) | Clauses (Sum) | Time (Median) | Time (Max) | Time (Sum) |")
+        print("|-----------|------------------|----------------|-------------------|---------------|---------------|---------------|------------|------------|")
+        
+        for stats in mechanism_stats:
+            print(f"| {stats['Mechanism']} | {stats['Total_Properties']} | {stats['Lines_of_Code']:,} | {stats['Clauses_Median']:,.0f} | {stats['Clauses_Max']:,.0f} | {stats['Clauses_Sum']:,.0f} | {stats['Time_Median']:.3f} | {stats['Time_Max']:.3f} | {stats['Time_Sum']:.3f} |")
+        
+        print()
+        
+        # Create LaTeX table
+        create_comprehensive_latex_table(mechanism_stats, steps, f"reports/comprehensive_mechanism_summary_steps_{steps}.tex")
+    
+    print("Comprehensive mechanism summary LaTeX tables have been saved to the reports directory.")
+
+def create_comprehensive_latex_table(mechanism_stats, steps, filename):
+    """Create a comprehensive LaTeX table with property counts and statistics."""
+    
+    latex_content = r"""\begin{table}[htbp]
+\centering
+\begin{tabular}{|l|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Mechanism} & \textbf{Total Properties} & \textbf{Lines of Code} & \textbf{Clauses (Median)} & \textbf{Clauses (Max)} & \textbf{Clauses (Sum)} & \textbf{Time (Median)} & \textbf{Time (Max)} & \textbf{Time (Sum)} \\
+\hline
+"""
+    
+    for stats in mechanism_stats:
+        mechanism = stats['Mechanism']
+        total_props = stats['Total_Properties']
+        clauses_median = int(stats['Clauses_Median'])
+        clauses_max = int(stats['Clauses_Max'])
+        clauses_sum = int(stats['Clauses_Sum'])
+        time_median = stats['Time_Median']
+        time_max = stats['Time_Max']
+        time_sum = stats['Time_Sum']
+        
+        lines_of_code = stats['Lines_of_Code']
+        latex_content += f"{mechanism} & {total_props} & {lines_of_code:,} & {clauses_median:,} & {clauses_max:,} & {clauses_sum:,} & {time_median:.3f} & {time_max:.3f} & {time_sum:.3f} \\\\\n"
+    
+    latex_content += r"""\hline
+\end{tabular}
+\caption{Comprehensive mechanism summary (Scope 5, Steps 1-""" + str(steps) + r""")}
+\label{tab:comprehensive_mechanism_summary_steps_""" + str(steps) + r"""}
+\end{table}"""
+    
+    with open(filename, 'w') as f:
+        f.write(latex_content)
+    
+    print(f"Comprehensive mechanism summary LaTeX table saved as '{filename}'")
+
+def create_cumulative_mechanism_tables(filtered_data):
+    """Create cumulative tables showing progressive addition of mechanisms."""
+    
+    # Define properties for each mechanism
+    properties = {
+        'Simple': ['c_srp1', 'c_srp2', 'c_srp3', 'c_srp4'],
+        'Forced Queue': ['c_fqp1', 'c_fqp2', 'c_fqp3', 'c_fqp4', 'c_fqp5', 'c_fqp6'],
+        'Blacklist': ['c_bp1', 'c_bp2', 'c_bp3', 'c_bp4', 'c_bp5'],
+        'Upgradeability': ['c_up1', 'c_up2', 'c_up3', 'c_up4']
+    }
+    
+    # Define cumulative combinations
+    cumulative_combinations = {
+        'Simple': ['Simple'],
+        'Forced': ['Simple', 'Forced Queue'],
+        'Blacklist': ['Simple', 'Forced Queue', 'Blacklist'],
+        'Upgrade': ['Simple', 'Forced Queue', 'Upgradeability'],
+        'Upgrade+Blacklist': ['Simple', 'Forced Queue', 'Upgradeability', 'Blacklist']
+    }
+    
+    # Lines of code for each mechanism (not cumulative)
+    mechanism_loc = {
+        'Simple': 295,
+        'Forced Queue': 529,
+        'Blacklist': 721,
+        'Upgradeability': 970
+    }
+    
+    # Lines of code mapping
+    loc_mapping = {
+        'Simple': 295,
+        'Forced Queue': 529,
+        'Blacklist': 721,
+        'Upgradeability': 970
+    }
+    
+    step_ranges = [5, 10]
+    
+    for steps in step_ranges:
+        # Filter data for current step range
+        step_data = filtered_data[filtered_data['Step_num'] <= steps]
+        
+        # Calculate cumulative statistics
+        cumulative_stats = []
+        
+        for combo_name, mechanisms in cumulative_combinations.items():
+            # Get all properties for this combination
+            all_properties = []
+            for mech in mechanisms:
+                all_properties.extend(properties[mech])
+            
+            # Filter data for all properties in this combination
+            combo_data = step_data[step_data['Command'].str.contains('|'.join(all_properties))]
+            
+            if not combo_data.empty:
+                total_clauses = combo_data['Clauses'].sum()
+                total_time = combo_data['Time_seconds'].sum()
+                total_properties = len(all_properties)
+                
+                # Show lines of code for each mechanism in the combination
+                if combo_name == 'Upgrade+Blacklist':
+                    loc_string = "-"
+                else:
+                    # Show individual mechanism lines of code
+                    loc_display = []
+                    for mech in mechanisms:
+                        loc_display.append(f"{mech} ({mechanism_loc[mech]})")
+                    loc_string = " + ".join(loc_display)
+                
+                cumulative_stats.append({
+                    'Combination': combo_name,
+                    'Lines_of_Code': loc_string,
+                    'Clauses_Sum': total_clauses,
+                    'Time_Sum': total_time
+                })
+        
+        # Sort by combination name
+        cumulative_stats.sort(key=lambda x: x['Combination'])
+        
+        # Print table
+        print(f"\n{'='*100}")
+        print(f"CUMULATIVE MECHANISM SUMMARY TABLE - Scope 5, Steps 1-{steps}")
+        print(f"{'='*100}")
+        print()
+        print("| Combination | Lines of Code | Clauses (Sum) | Time (Sum) |")
+        print("|-------------|----------------|----------------|------------|")
+        
+        for stats in cumulative_stats:
+            print(f"| {stats['Combination']} | {stats['Lines_of_Code']} | {stats['Clauses_Sum']:,.0f} | {stats['Time_Sum']:.3f} |")
+        
+        print()
+        
+        # Create LaTeX table
+        create_cumulative_latex_table(cumulative_stats, steps, f"reports/cumulative_mechanism_summary_steps_{steps}.tex")
+    
+    print("Cumulative mechanism summary LaTeX tables have been saved to the reports directory.")
+
+def create_cumulative_latex_table(cumulative_stats, steps, filename):
+    """Create a cumulative LaTeX table."""
+    
+    latex_content = r"""\begin{table}[htbp]
+\centering
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Combination} & \textbf{Lines of Code} & \textbf{Clauses (Sum)} & \textbf{Time (Sum)} \\
+\hline
+"""
+    
+    for stats in cumulative_stats:
+        combination = stats['Combination']
+        lines_of_code = stats['Lines_of_Code']
+        clauses_sum = int(stats['Clauses_Sum'])
+        time_sum = stats['Time_Sum']
+        
+        latex_content += f"{combination} & {lines_of_code} & {clauses_sum:,} & {time_sum:.3f} \\\\\n"
+    
+    latex_content += r"""\hline
+\end{tabular}
+\caption{Cumulative mechanism summary (Scope 5, Steps 1-""" + str(steps) + r""")}
+\label{tab:cumulative_mechanism_summary_steps_""" + str(steps) + r"""}
+\end{table}"""
+    
+    with open(filename, 'w') as f:
+        f.write(latex_content)
+    
+    print(f"Cumulative mechanism summary LaTeX table saved as '{filename}'")
 
 def create_detailed_property_tables(filtered_data):
     """Create detailed tables showing each property individually."""
     
-    # Get all unique properties
+    # Get all unique properties (excluding c_blacklist_prop_all_censored which has 0 clauses)
     properties = {
         'Simple': ['c_srp1', 'c_srp2', 'c_srp3', 'c_srp4'],
         'Forced Queue': ['c_fqp1', 'c_fqp2', 'c_fqp3', 'c_fqp4', 'c_fqp5', 'c_fqp6'],
-        'Blacklist': ['c_bp1', 'c_bp2', 'c_bp3', 'c_bp4', 'c_bp5', 'c_blacklist_prop_all_censored'],
+        'Blacklist': ['c_bp1', 'c_bp2', 'c_bp3', 'c_bp4', 'c_bp5'],
         'Upgradeability': ['c_up1', 'c_up2', 'c_up3', 'c_up4']
     }
     
